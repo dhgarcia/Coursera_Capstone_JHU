@@ -1,31 +1,42 @@
+library(quanteda)
 library(dplyr)
 
 
 prediction <- function(inputText, Ngrams) {
   
+  predicts <- data.frame(token = character(), prob = double(), stringsAsFactors = FALSE)
   
-  s<-1:3
-  lambdas <- c(0.05, 0.20, 0.30, 0.45)
-  tokens<-unlist(strsplit(inputText," "))
+  tokens <- tokenize(toLower(inputText),
+                     removePunct = TRUE,
+                     removeSeparators = TRUE,
+                     removeNumbers = TRUE,
+                     verbose = FALSE,
+                     simplify = TRUE)
+  
+  if (length(tokens) < 3) s <- 1:length(tokens) else s<-1:3
+  
   tokens <- sapply(s, function(i) tail(tokens,i))
   
-  for (i in length(Ngrams):1) {
+  lambdas <- c(0.05, 0.15, 0.30, 0.50)
+  
+  
+  for (i in length(Ngrams):2) {
     tmp <- Ngrams[[i]]
     tok <- paste(tokens[[i-1]],collapse = "_")
     tok <- paste(tok, "_", sep = "")
-    #which(tmp$token == tok)
+    
     tmp <- tmp[grep(tok,tmp$token),]
-    #tmp <- mutate(tmp, prob = rcount/N)
-    #tmp <- arrange(tmp, desc(count))
     tmp <- tmp %>% mutate(token = gsub(tok, "", token), prob = (rcount/N)*lambdas[i]) %>%
       arrange(desc(prob)) %>% select(token, prob)
-    #tmp <- head(tmp)
-    predict <- tmp
+    
+    predicts <- full_join(tmp, predicts)
   }
   
-  head(predict)
+  predicts <- predicts %>% group_by(token) %>% 
+    summarize(prob = sum(prob)) %>% arrange(desc(prob))
+  #head(predicts)
 }
 
 
 load("Corpus_NGrams_Frequencies_R.RData")
-prediction("Do you want to go to the", NGrams)
+a<-prediction("Do you want to go to the", NGrams)
